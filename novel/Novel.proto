@@ -1,0 +1,59 @@
+syntax = "proto2";
+
+package novel;
+
+message NovelChapterDetail {
+    required int32 chapterId = 1;
+    required string chapterName = 2;
+    required int32 chapterOrder = 3; 
+}
+
+message NovelVolumeDetail {
+    required int32 volumeId = 1;
+    required string volumeName = 2;
+    required int32 volumeOrder = 3;
+    repeated NovelChapterDetail chapters = 4;
+}
+
+message NovelChapterResponse {
+    optional int32 errno = 1;
+    optional string errmsg = 2;
+    repeated NovelVolumeDetail data = 3;
+}
+
+message NovelInfoResponse {
+    optional int32 errno = 1;
+    optional string errmsg = 2;
+    repeated NovelInfo data = 3;
+}
+
+
+message NovelVolume {
+    required int32 volumeId = 1;
+    required int32 novelId = 2;
+    required string volumeName = 3;
+    required int32 volumeOrder = 4;
+    required uint64 addtime = 5;
+    required uint32 sumChapters = 6;
+}
+
+message NovelInfo {
+    required int32 novelId = 1;
+    required string name = 2;
+    required string zone = 3;
+    required string status = 4;
+    required string lastUpdateVolumeName = 5 ;
+    required string lastUpdateChapterName = 6;
+    required int32 lastUpdateVolumeId = 7;
+    required int32 lastUpdateChapterId = 8;
+    required uint64 lastUpdateTime = 9;
+    required string cover = 10;
+    required int32 hotHits = 11;
+    required string introduction = 12;
+    repeated string types = 13;
+    required string authors = 14;
+    required string firstLetter = 15;
+    required int32 subscribeNum = 16;
+    optional uint64 redisUpdateTime = 17; 
+    repeated NovelVolume volume = 18;
+}
