@@ -6,13 +6,15 @@ const { decryptBlocksWithDefaultKey } = require("../utils/decrypt.js")
 const protoUtils = require("../utils/protoutils")
 const crypto = require("crypto")
 
+
+const { NOVEL_KEY } = require("../utils/safestore")
+
 const DETAIL_API = "http://nnv4api.muwai.com/novel/detail/"
 const CHAPTER_API = "http://nnv4api.muwai.com/novel/chapter/"
 
 const TEMPLATE = `${__dirname}/Novel.proto`
 
 const APP_DOMAIN_NAME = "muwai.com";
-const NOVEL_KEY = "IBAAKCAQEAsUAdKtXNt8cdrcTXLsaFKj9bSK1nEOAROGn2KJXlEVekcPssKUxSN8dsfba51kmHM";
 const TEXT_API = "http://jurisdiction." + APP_DOMAIN_NAME + "/lnovel/"
 
 /**

@@ -5,7 +5,7 @@ const fs = require("fs")
 const path = require("path")
 const Epub = require("epub-gen")
 
-id = 2580;
+id = 3236;
 
 outputDir = "/Users/zzy/Downloads/dmzj/"
 
@@ -23,6 +23,7 @@ async function gatherInfo(novelId) {
 
 async function makeEpub(novelId) {
     let [info, volumes] = await gatherInfo(novelId)
+    console.log("Downloading text...")
     for (let volume of volumes) {
         for (let chapter of volume.chapters) {
             let text = await getChapterText(volume.volumeId, chapter.chapterId)
@@ -50,11 +51,10 @@ async function makeEpub(novelId) {
         for (let chap of vol.chapters) {
             content.push({
                 title: chap.chapterName,
-                data: `<div>${chap.text}/div`
+                data: `<div>${chap.text}</div>`
             })
         }
     })
-
 
     const options = {
         title: info.name,
@@ -66,8 +66,7 @@ async function makeEpub(novelId) {
         verbose: true
     }
 
-    book = await new Epub(options, path.join(workingDir, `${info.name}.epub`))
-    return book
+    return new Epub(options, path.join(workingDir, `${info.name}.epub`))
 }
 
 function epubMakerTest() {
