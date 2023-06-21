@@ -1,18 +1,21 @@
 const { Axios } = require("axios");
 const { exit } = require("process");
-const { getNovelDetail, getNovelChapters, getChapterText } = require("./novel")
+const { getNovelDetail, getNovelChapters, getChapterText, purgeHtmlStyles } = require("./novel")
+const { timestampToLocaleString } = require("./utils/date")
 const fs = require("fs")
 const path = require("path")
 const Epub = require("epub-gen")
 
-id = 3236;
+id = 1697;
+//Incremental is not necessary now
+updateFrom = "/Users/zzy/Downloads/dmzj/3236_我的初恋对象与人接吻了/我的初恋对象与人接吻了.epub"
 
 outputDir = "/Users/zzy/Downloads/dmzj/"
 
 async function gatherInfo(novelId) {
     let info = await getNovelDetail(novelId)
     if (!info) exit(1)
-    console.log(`Got novel ${info.name}, author ${info.authors}, status ${info.status}, last updated chapter ${info.lastUpdateChapterName}, currently has ${info.volume.length} volumes.`)
+    console.log(`Got novel ${info.name}, author ${info.authors}, status ${info.status}, last updated time ${timestampToLocaleString(info.lastUpdateTime)} last updated chapter ${info.lastUpdateChapterName}, currently has ${info.volume.length} volumes.`)
     let volumes = await getNovelChapters(novelId)
     if (!volumes) exit(1)
     volumes.forEach(vol => {
@@ -27,20 +30,23 @@ async function makeEpub(novelId) {
     for (let volume of volumes) {
         for (let chapter of volume.chapters) {
             let text = await getChapterText(volume.volumeId, chapter.chapterId)
-            chapter.text = text
+            chapter.text = purgeHtmlStyles(text, {
+                printMatches: true,
+                objectName: `${volume.volumeName} ${chapter.chapterName}`
+            })
         }
         volume.chapters = volume.chapters.sort((a, b) => a.chapterOrder - b.chapterOrder)
     }
     // volumes = volumes.sort((a, b) => a.volumeOrder - b.volumeOrder)
     let volumesStr = JSON.stringify(volumes)
     console.log("Successfully get raw text", volumesStr)
-    const workingDir = path.join(outputDir, info.novelId.toString())
+    const workingDir = path.join(outputDir, `${info.novelId}_${info.name}`)
     if (!fs.existsSync(workingDir)) {
         fs.mkdirSync(workingDir);
     }
-    // fs.writeFileSync(path.join(workingDir, 'volumes.json'), volumesStr, err => {
-    //     console.error(err)
-    // })
+    fs.writeFileSync(path.join(workingDir, 'volumes.json'), volumesStr, err => {
+        console.error(err)
+    })
 
     var content = []
     volumes.forEach(vol => {

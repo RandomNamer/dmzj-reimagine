@@ -1,21 +1,25 @@
-module.exports = { getNovelDetail, getNovelChapters, getChapterText }
+module.exports = { getNovelDetail, getNovelChapters, getChapterText, purgeHtmlStyles }
 const Axios = require('axios').default
 const fs = require('fs')
 const Protobuf = require('protobufjs')
 const { decryptBlocksWithDefaultKey } = require("../utils/decrypt.js")
-const protoUtils = require("../utils/protoutils")
+const ProtoUtils = require("../utils/protoutils")
 const crypto = require("crypto")
+const Constants = require("../utils/constants.js")
 
 
 const { NOVEL_KEY } = require("../utils/safestore")
 
-const DETAIL_API = "http://nnv4api.muwai.com/novel/detail/"
-const CHAPTER_API = "http://nnv4api.muwai.com/novel/chapter/"
+const APIV4_DEFAULT_URL = `https://${Constants.API_V4}.${Constants.DOMAIN_DEFAULT}`
+
+const DETAIL_API = `${APIV4_DEFAULT_URL}/novel/detail/`
+const CHAPTER_API = `${APIV4_DEFAULT_URL}/novel/chapter/`
 
 const TEMPLATE = `${__dirname}/Novel.proto`
 
-const APP_DOMAIN_NAME = "muwai.com";
-const TEXT_API = "http://jurisdiction." + APP_DOMAIN_NAME + "/lnovel/"
+const TEXT_API = `https://jurisdiction.${Constants.DOMAIN_DEFAULT}/lnovel/`
+
+const htmlStylePattern = /style=".+?"/gm
 
 /**
  * 
@@ -27,9 +31,9 @@ async function getNovelDetail(id){
     let resp = await Axios.get(`${DETAIL_API}${id}`)
     let protoMsgBuf = decryptBlocksWithDefaultKey(resp.data)
     // console.log(`Protobuf message:\n${protoMsgBuf.toString()}`)
-    let respObj = await protoUtils.decode(TEMPLATE, "novel.NovelInfoResponse", protoMsgBuf)
+    let respObj = await ProtoUtils.decode(TEMPLATE, "novel.NovelInfoResponse", protoMsgBuf)
     if (respObj.errno || respObj.errmsg) {
-        console.log(`Error getting novel detail, errno: ${respObj.errno}, errmsg: ${errmsg}`)
+        console.error(`Error getting novel detail, errno: ${respObj.errno}, errmsg: ${respObj.errmsg}`)
         return null
     }
     // console.log(JSON.stringify(novelDetail))
@@ -46,7 +50,7 @@ async function getNovelChapters(id){
     let resp = await Axios.get(`${CHAPTER_API}${id}`)
     let protoMsgBuf = decryptBlocksWithDefaultKey(resp.data)
     // console.log(`Protobuf message:\n${protoMsgBuf.toString()}`)
-    let respObj = await protoUtils.decode(TEMPLATE, "novel.NovelChapterResponse", protoMsgBuf)
+    let respObj = await ProtoUtils.decode(TEMPLATE, "novel.NovelChapterResponse", protoMsgBuf)
     if (respObj.errno || respObj.errmsg) {
         console.log(`Error getting novel chapters, errno: ${respObj.errno}, errmsg: ${errmsg}`)
         return null
@@ -56,9 +60,9 @@ async function getNovelChapters(id){
 }
 
 async function getChapterText(volumeId, chapterId){
-    url = `${TEXT_API}${volumeId}_${chapterId}.txt`
-    t = new Date().getTime() / 1000;
-    k = keyGen(`${NOVEL_KEY}/lnovel/${volumeId}_${chapterId}.txt${t}`)
+    let url = `${TEXT_API}${volumeId}_${chapterId}.txt`
+    let t = new Date().getTime() / 1000;
+    let k = keyGen(`${NOVEL_KEY}/lnovel/${volumeId}_${chapterId}.txt${t}`)
     let resp = await Axios.get(url, {params: {t: t, k: k}}).catch(e => console.error(e))
     // console.log(resp.data)
     return resp.data
@@ -70,6 +74,24 @@ function keyGen(from){
     return md5.update(from).digest('hex')
 }
 
+/**
+ * 
+ * @param {string} html 
+ * @returns {string}
+ */
+function purgeHtmlStyles(html, context) {
+    let {printMatches, objectName } = context
+    if (printMatches) {
+        let match = htmlStylePattern.exec(html)
+        if (match != null && match instanceof Array) {
+            console.log(`Purging style attributes of ${objectName}: ${match[0]}`)
+        }
+    }
+    let processed = html.replace(htmlStylePattern, "")
+    return processed
+}
+
 // getNovelDetail(1800)
 // getNovelChapters(1800)
 // getChapterText(11615, 117485)
+// getChapterText(12155, 124912)
