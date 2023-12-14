@@ -48,7 +48,7 @@ message NovelInfo {
     required int32 lastUpdateChapterId = 8;
     required uint64 lastUpdateTime = 9;
     required string cover = 10;
-    required int32 hotHits = 11;
+    optional int32 hotHits = 11;
     required string introduction = 12;
     repeated string types = 13;
     required string authors = 14;

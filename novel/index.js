@@ -63,7 +63,11 @@ async function getChapterText(volumeId, chapterId){
     let url = `${TEXT_API}${volumeId}_${chapterId}.txt`
     let t = new Date().getTime() / 1000;
     let k = keyGen(`${NOVEL_KEY}/lnovel/${volumeId}_${chapterId}.txt${t}`)
-    let resp = await Axios.get(url, {params: {t: t, k: k}}).catch(e => console.error(e))
+    let text;
+    let resp = await Axios.get(url, {params: {t: t, k: k}}).catch(e => {
+        console.error(`Error requesting ${url}?t=${t}&k=${k} with ${e}`)
+        return e
+    })
     // console.log(resp.data)
     return resp.data
 }

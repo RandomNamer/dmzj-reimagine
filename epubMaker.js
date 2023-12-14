@@ -1,14 +1,17 @@
 const { Axios } = require("axios");
 const { exit } = require("process");
 const { getNovelDetail, getNovelChapters, getChapterText, purgeHtmlStyles } = require("./novel")
-const { timestampToLocaleString } = require("./utils/date")
+const { timestampToLocaleString, timeStampToDashedString } = require("./utils/date")
 const fs = require("fs")
 const path = require("path")
 const Epub = require("epub-gen")
 
-id = 1697;
+//TODO: refractor of main function; increamental update;
+
+// url = "https://xs.dmzj.com/3638/index.shtml"
+id = 3638;
 //Incremental is not necessary now
-updateFrom = "/Users/zzy/Downloads/dmzj/3236_我的初恋对象与人接吻了/我的初恋对象与人接吻了.epub"
+// updateFrom = "/Users/zzy/Downloads/dmzj/3236_我的初恋对象与人接吻了/我的初恋对象与人接吻了.epub"
 
 outputDir = "/Users/zzy/Downloads/dmzj/"
 
@@ -29,11 +32,16 @@ async function makeEpub(novelId) {
     console.log("Downloading text...")
     for (let volume of volumes) {
         for (let chapter of volume.chapters) {
-            let text = await getChapterText(volume.volumeId, chapter.chapterId)
-            chapter.text = purgeHtmlStyles(text, {
-                printMatches: true,
-                objectName: `${volume.volumeName} ${chapter.chapterName}`
-            })
+            console.log(`Downloading ${volume.volumeName} / ${chapter.chapterName}...`)
+            try {
+                let text = await getChapterText(volume.volumeId, chapter.chapterId)
+                chapter.text = purgeHtmlStyles(text, {
+                    printMatches: true,
+                    objectName: `${volume.volumeName} ${chapter.chapterName}`
+                })
+            } catch (e) {
+                chapter.text = `Error fetching text with ${e}`
+            }
         }
         volume.chapters = volume.chapters.sort((a, b) => a.chapterOrder - b.chapterOrder)
     }
@@ -72,7 +80,7 @@ async function makeEpub(novelId) {
         verbose: true
     }
 
-    return new Epub(options, path.join(workingDir, `${info.name}.epub`))
+    return new Epub(options, path.join(workingDir, `${info.name}_${timeStampToDashedString(info.lastUpdateTime)}.epub`))
 }
 
 function epubMakerTest() {
