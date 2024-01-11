@@ -9,7 +9,7 @@ const Epub = require("epub-gen")
 //TODO: refractor of main function; increamental update;
 
 // url = "https://xs.dmzj.com/3638/index.shtml"
-id = 3638;
+id = 2304;
 //Incremental is not necessary now
 // updateFrom = "/Users/zzy/Downloads/dmzj/3236_我的初恋对象与人接吻了/我的初恋对象与人接吻了.epub"
 
@@ -18,7 +18,7 @@ outputDir = "/Users/zzy/Downloads/dmzj/"
 async function gatherInfo(novelId) {
     let info = await getNovelDetail(novelId)
     if (!info) exit(1)
-    console.log(`Got novel ${info.name}, author ${info.authors}, status ${info.status}, last updated time ${timestampToLocaleString(info.lastUpdateTime)} last updated chapter ${info.lastUpdateChapterName}, currently has ${info.volume.length} volumes.`)
+    console.log(`Got novel ${info.name}, author ${info.authors}, status ${info.status}, last updated time ${timestampToLocaleString(info.lastUpdateTime)}, last updated chapter ${info.lastUpdateChapterName}, currently has ${info.volume.length} volumes.`)
     let volumes = await getNovelChapters(novelId)
     if (!volumes) exit(1)
     volumes.forEach(vol => {
@@ -79,6 +79,10 @@ async function makeEpub(novelId) {
         content: content,
         verbose: true
     }
+
+    fs.writeFileSync(path.join(workingDir, 'epubContent.json'), JSON.stringify(options), err => {
+        console.error(err)
+    })
 
     return new Epub(options, path.join(workingDir, `${info.name}_${timeStampToDashedString(info.lastUpdateTime)}.epub`))
 }
