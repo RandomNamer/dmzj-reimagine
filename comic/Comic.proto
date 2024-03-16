@@ -1,0 +1,96 @@
+syntax = "proto3"; 
+
+// package com.dmzjsq.manhua.proto; 
+package comic;
+
+
+message ComicTag {
+    int32 tag_id = 1;
+    string tag_name = 2;
+}
+
+message Urls {
+    int64 id = 1;
+    string title = 2;
+    string url = 3;
+    string icon = 4; // Assuming this is an icon or similar field
+    string package_name = 5;
+    string d_url = 6; // Assuming this is a direct or download URL
+    int32 btype = 7; // Assuming this is a type indicator, represented as an integer
+}
+
+message UrlLinks {
+    string title = 1;
+    repeated Urls list = 2;
+}
+
+message ChapterInfo {
+    int64 chapter_id = 1;
+    string chapter_title = 2;
+    int64 updatetime = 3;
+    int32 filesize = 4;
+    int32 chapter_order = 5;
+    bool is_fee = 6;
+}
+
+message ComicChapters {
+    string title = 1;
+    repeated ChapterInfo data = 2;
+}
+
+message ComicInfo {
+    int64 id = 1;
+    string title = 2;
+    int32 direction = 3;
+    int32 islong = 4;
+    int32 is_dmzj = 5;
+    string cover = 6;
+    string description = 7;
+    int64 lastUpdatetime = 8;
+    string lastUpdateChapterName = 9;
+    int32 copyright = 10;
+    string firstLetter = 11;
+    string comicPy = 12;
+    int32 hidden = 13;
+    int64 hotNum = 14;
+    int64 hitNum = 15;
+    int64 uid = 16;
+    int32 isLock = 17;
+    int32 lastUpdateChapterId = 18;
+    repeated ComicTag types = 19;
+    repeated ComicTag status = 20;
+    repeated ComicTag authors = 21;
+    int64 subscribeNum = 22;
+    repeated ComicChapters chapters = 23;
+    int32 isNeedLogin = 24;
+    repeated UrlLinks urlLinks = 25;
+    int32 isHideChapter = 26;
+    repeated UrlLinks dhUrlLinks = 27;
+    string cornerMark = 28;
+    int32 isFee = 29;
+}
+
+message ComicResponse {
+    int32 errno = 1;
+    string errmsg = 2;
+    ComicInfo data = 3; 
+}
+
+message ChapterDetail {
+    int64 chapter_id = 1;
+    int64 comic_id = 2;
+    string title = 3;
+    int32 chapter_order = 4;
+    int32 direction = 5;
+    repeated string page_url = 6;
+    int32 picnum = 7;
+    repeated string page_url_hd = 8;
+    int32 comment_count = 9;
+}
+
+
+message ChapterResponse {
+    int32 errno = 1;
+    string errmsg = 2;
+    ChapterDetail data = 3;
+}
