@@ -98,7 +98,7 @@ function epubMakerTest() {
         content: [
             {
                 title: "empty",
-                data: ""
+                data: "<img src=\"file:///Users/zzy/Downloads/dmzj_comic/47971_憧憬成为魔法少女/连载/1话/01.jpg\"><img src=\"file:///Users/zzy/Downloads/dmzj_comic/47971_憧憬成为魔法少女/连载/1话/02.jpg\">"
             },
             {
                 title: "content",
@@ -107,7 +107,7 @@ function epubMakerTest() {
         ],
         verbose: true
     }
-    new Epub(options, "/Users/zzy/Downloads/dmzj/test.epub")
+    new Epub(options, "/Users/zzy/Downloads/test.epub")
 }
 
 

@@ -5,22 +5,18 @@ const fs = require("fs")
 const path = require("path")
 const url = require("url")
 
-const { getComicDetail, getChapterDetail, COMIC_DEFAULT_UA } = require("./comic");
+const { getComicDetail, getChapterDetail, COMIC_DEFAULT_UA, findComicFolderById, makeCbz } = require("./comic");
 const { arch } = require("os");
 const { info } = require('console');
 
-const id = 47971;
-const outputDir = "/Users/zzy/Downloads/dmzj_comic/"
+const COMIC_ID = 47971;
+const COMIC_OUTPUT_DIR = "/Volumes/medialibrary/Books/Comic/dmzj/raw"
+const CBZ_OUTPUT_DIR = "/Volumes/medialibrary/Books/Comic/dmzj/cbz"
 const ENABLE_HIGH_QUALITY = true
 
-function findFolderById(directory, id) {
-    if (!fs.existsSync(directory)) {
-        fs.mkdirSync(directory, recursive = true);
-    }
-    const filesAndFolders = fs.readdirSync(directory);
-    const folder = filesAndFolders.find(name => name.startsWith(id.toString()));
-    return folder ? path.join(directory, folder) : null;
-}
+
+
+module.exports = { findComicFolderById , COMIC_ID, COMIC_OUTPUT_DIR }
 
 /**
  * 
@@ -244,7 +240,7 @@ async function increamentalArchive(id, workingDir, preferHighQuality = true) {
 
 
 async function main() {
-    const workingDir = findFolderById(outputDir, id);
+    const workingDir = findComicFolderById(COMIC_OUTPUT_DIR, COMIC_ID);
     if (workingDir) {
         const infoPath = path.join(workingDir, "info.json");
         try {
@@ -254,15 +250,16 @@ async function main() {
                 return;
             }
             //Ensured exit here
-            increamentalArchive(id, workingDir, ENABLE_HIGH_QUALITY);
+            increamentalArchive(COMIC_ID, workingDir, ENABLE_HIGH_QUALITY);
             return;
         } catch (error) {
             console.error("Error reading download history", error);
             console.log("No download history found, starting fresh");
         }
     } 
-    archiveAll(id, outputDir, ENABLE_HIGH_QUALITY);
+    archiveAll(COMIC_ID, COMIC_OUTPUT_DIR, ENABLE_HIGH_QUALITY);
     return;
 }
 
-main()
+// main()
+makeCbz(findComicFolderById(COMIC_OUTPUT_DIR, COMIC_ID), CBZ_OUTPUT_DIR)

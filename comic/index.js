@@ -2,9 +2,12 @@ const ProtoUtils = require("../utils/protoutils")
 const PROTO_TEMPLATE = `${__dirname}/Comic.proto`
 
 const fs = require('fs')
+const path = require('path')
 const { DefaultAxiosProxy } = require('../utils/axios')
 const { decryptBlocksWithDefaultKey } = require("../utils/decrypt.js")
 const Constants = require("../utils/constants.js")
+
+const { makeCbz } = require("./cbzMaker")
 
 
 const APIV4_DEFAULT_URL = `https://${Constants.API_V4}.${Constants.DOMAIN_DEFAULT}`
@@ -23,7 +26,17 @@ const TEST = {
 }
 
 
-module.exports = { getComicDetail, getChapterDetail, COMIC_DEFAULT_UA }
+module.exports = { getComicDetail, getChapterDetail, COMIC_DEFAULT_UA, findComicFolderById, makeCbz }
+
+function findComicFolderById(directory, id) {
+    if (!fs.existsSync(directory)) {
+        fs.mkdirSync(directory, recursive = true);
+    }
+    const filesAndFolders = fs.readdirSync(directory);
+    const folder = filesAndFolders.find(name => name.startsWith(id.toString()));
+    return folder ? path.join(directory, folder) : null;
+}
+
 
 async function testLocalResponse() {
     let respProto = fs.readFileSync(TEST.local_resp)
