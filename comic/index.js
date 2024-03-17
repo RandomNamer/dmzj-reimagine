@@ -1,27 +1,20 @@
-module.exports = { getComicDetail, getChapterDetail }
-
 const ProtoUtils = require("../utils/protoutils")
 const PROTO_TEMPLATE = `${__dirname}/Comic.proto`
 
 const fs = require('fs')
-const Axios = require('axios')
+const { DefaultAxiosProxy } = require('../utils/axios')
 const { decryptBlocksWithDefaultKey } = require("../utils/decrypt.js")
 const Constants = require("../utils/constants.js")
 
 
 const APIV4_DEFAULT_URL = `https://${Constants.API_V4}.${Constants.DOMAIN_DEFAULT}`
-const DEFAULT_UA = "Android,DMZJ1,2.9.0"
+const COMIC_DEFAULT_UA = "Android,DMZJ1,2.9.0"
 
 
 const DETAIL_API = `${APIV4_DEFAULT_URL}/comic/detail/`
 const CHAPTER_API = `${APIV4_DEFAULT_URL}/comic/chapter/`
 const DEFAULT_REQ_SUFFIX = "?disable_level=1&channel=Android&_id=e30"
-/** 
- * TODO: 
- * 1. Comic detail api with only id done
- * 2. image list api with chapter id
- * 3. Free to go with download, prepare for rate limits.
- */
+
 
 const TEST = {
     comic_id: 47971,
@@ -29,10 +22,14 @@ const TEST = {
     local_resp: "/Users/zzy/Downloads/dmzj_resp_comic_chapter.bin"
 }
 
+
+module.exports = { getComicDetail, getChapterDetail, COMIC_DEFAULT_UA }
+
 async function testLocalResponse() {
     let respProto = fs.readFileSync(TEST.local_resp)
     let respObj = await ProtoUtils.decode(PROTO_TEMPLATE, "comic.ChapterResponse", respProto)
     console.log(JSON.stringify(respObj))
+    return respObj
 }
 
 /**
@@ -43,29 +40,44 @@ async function testLocalResponse() {
  */
 async function getComicDetail(id) {
     let url = `${DETAIL_API}${id}${DEFAULT_REQ_SUFFIX}`
-    let resp = await Axios.get(url, {
-        userAgent: DEFAULT_UA
-    } )
+    let resp = await DefaultAxiosProxy.get(url, {
+        userAgent: COMIC_DEFAULT_UA
+    } ).catch(e => {
+        console.error(`Error getting comic detail`, e)
+        return null
+    })
     let protoMsgBuf = decryptBlocksWithDefaultKey(resp.data)
     let respObj = await ProtoUtils.decode(PROTO_TEMPLATE, "comic.ComicResponse", protoMsgBuf)
     if (respObj.errno || respObj.errmsg) {
         console.log(`Error getting novel chapters, errno: ${respObj.errno}, errmsg: ${errmsg}`)
         return null
     }
-    return respObj.data
+    //handle long
+    let data = respObj.data
+    data.id = data.id.toNumber()
+    data.lastUpdatetime = data.lastUpdatetime.toNumber()
+    return data
 }
 
 async function getChapterDetail(comicId, chapterId) {
     let url = `${CHAPTER_API}${comicId}/${chapterId}${DEFAULT_REQ_SUFFIX}`
-    let resp = await Axios.get(url, {
-        userAgent: DEFAULT_UA
-    })
+    let resp = await DefaultAxiosProxy.get(url, {
+        userAgent: COMIC_DEFAULT_UA
+    }).catch(e => {
+        console.error(`Error getting comic chapter detail`, e)
+        return null
+    })  
     let protoMsgBuf = decryptBlocksWithDefaultKey(resp.data)
     let respObj = await ProtoUtils.decode(PROTO_TEMPLATE, "comic.ChapterResponse", protoMsgBuf)
     if (respObj.errno || respObj.errmsg) {
         console.log(`Error getting novel chapters, errno: ${respObj.errno}, errmsg: ${errmsg}`)
         return null
     }
+    //handle long
+    let data = respObj.data
+    data.chapterId = data.chapterId.toNumber()
+    data.comicId = data.comicId.toNumber()
+   
     return respObj.data
 }
 
@@ -73,7 +85,9 @@ async function getChapterDetail(comicId, chapterId) {
 // testLocalResponse()
 // getChapterDetail(TEST.comic_id, TEST.chapter_id).then(resp => {
 //     console.log(JSON.stringify(resp))
+//     fs.writeFileSync("./sample_resp_comic_chapter.json", JSON.stringify(resp))
 // })
 // getComicDetail(TEST.comic_id).then(resp => {
 //     console.log(JSON.stringify(resp))
+//     fs.writeFileSync("./sample_resp_comic_detail.json", JSON.stringify(resp))
 // })
