@@ -27,8 +27,8 @@ function countFiles(dir) {
 }
 
 function composeMetadataXml(folder, comicInfo, chapterInfo) {
-    const {chapterName, volumeName, chapterOrdinal} = chapterInfo
-    const {year, month, day} = timeStampToDateComponents(comicInfo.lastUpdatetime)
+    const {chapterName, volumeName, chapterOrdinal, updatedAt} = chapterInfo
+    const {year, month, day} = timeStampToDateComponents(updatedAt)
     let fileCount = countFiles(folder)
     const authorString = comicInfo.authors.map(author => author.tagName).join(', ')
     const tagString = comicInfo.types.map(tag => tag.tagName).join(', ')
@@ -41,10 +41,10 @@ function composeMetadataXml(folder, comicInfo, chapterInfo) {
             }
         },
         ComicInfo: {
-            Title: { _text: chapterName },
+            Title: { _text: `${volumeName} ${chapterName}` },
             Series: { _text: comicInfo.title },
             Number: { _text: chapterOrdinal },
-            Volume: { _text: volumeName },
+            // Volume: { _text: volumeName },
             Summary: { _text: comicInfo.description },
             Year: { _text: year },
             Month: { _text: month },
@@ -88,11 +88,15 @@ function compressDirectoryAlt(inputDir, outputFilePath, level = 0) {
     });
 }
 
-
-function makeCbz(comicFolder, cbzRoot) {
+/**
+ * 
+ * @param {string} comicFolder Folder containing comic images and `info.json`
+ * @param {string} cbzRoot Root folder of all abz files, which is the comic library.
+ */
+async function makeCbz(comicFolder, cbzRoot) {
     
     let comicInfo = JSON.parse(fs.readFileSync(path.join(comicFolder, 'info.json'))).comicInfo
-    cbzFolder = path.join(cbzRoot, comicInfo.title)
+    let cbzFolder = path.join(cbzRoot, comicInfo.title)
     if (!fs.existsSync(cbzFolder)) {
         fs.mkdirSync(cbzFolder, {recursive: true})
     }
@@ -106,7 +110,8 @@ function makeCbz(comicFolder, cbzRoot) {
         for (let chapter of volume.data.sort((a, b) => a.chapterOrder - b.chapterOrder)) {
             chapterNum += 1
             let chapterFolder = path.join(volumeFolder, chapter.chapterTitle)
-            let chapterCbz = path.join(cbzFolder, volume.title, `${chapter.chapterTitle}.cbz`)
+            // let chapterCbz = path.join(cbzFolder, volume.title, `${chapter.chapterTitle}.cbz`)
+            let chapterCbz = path.join(cbzFolder, `${volume.title} - ${chapter.chapterTitle}.cbz`)
             if (!fs.existsSync(path.dirname(chapterCbz))) {
                 fs.mkdirSync(path.dirname(chapterCbz), {recursive: true})
             }
@@ -117,12 +122,13 @@ function makeCbz(comicFolder, cbzRoot) {
             composeMetadataXml(chapterFolder, comicInfo, {
                 chapterName: chapter.chapterTitle, 
                 volumeName: volume.title,
-                chapterOrdinal: chapterNum
+                chapterOrdinal: chapterNum,
+                updatedAt: chapter.updatetime
             })
-            compressDirectoryAlt(chapterFolder, chapterCbz, 1).then(() => {
-                console.log(`Successfully zipped ${chapter.title}.cbz`)
+            await compressDirectoryAlt(chapterFolder, chapterCbz, 1).then(() => {
+                console.log(`Successfully zipped ${chapterCbz}`)
             }).catch(e => {
-                console.error(`Error zipping ${chapter.title}.cbz with ${e}`)
+                console.error(`Error zipping ${chapterCbz} with ${e}`)
             })
         }
         // console.log(`Zipping ${volume.title} to ${volumeCbz}`)
