@@ -77,7 +77,7 @@ function compressDirectory(inputDir, outputFilePath, level = 9) {
 }
 function compressDirectoryAlt(inputDir, outputFilePath, level = 0) {
     return new Promise((resolve, reject) => {
-        exec(`cd ${inputDir} && zip -${level}r ${outputFilePath} ./`, (error, stdout, stderr) => {
+        exec(`cd \"${inputDir}\" && zip -${level}r \"${outputFilePath}\" ./`, (error, stdout, stderr) => {
             if (error) {
                 console.error(`exec error: ${error}`);
                 reject(error);
@@ -125,6 +125,10 @@ async function makeCbz(comicFolder, cbzRoot) {
                 chapterOrdinal: chapterNum,
                 updatedAt: chapter.updatetime
             })
+            if (chapterNum == 1) {
+                console.log(`Copying cover.jpg to first chapter to help Komga to find it correctly`)
+                fs.copyFileSync(path.join(comicFolder, 'cover.jpg'), path.join(chapterFolder, '0.jpg'))
+            }
             await compressDirectoryAlt(chapterFolder, chapterCbz, 1).then(() => {
                 console.log(`Successfully zipped ${chapterCbz}`)
             }).catch(e => {

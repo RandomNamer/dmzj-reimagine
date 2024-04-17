@@ -33,7 +33,7 @@ function findComicFolderById(directory, id) {
         fs.mkdirSync(directory, recursive = true);
     }
     const filesAndFolders = fs.readdirSync(directory);
-    const folder = filesAndFolders.find(name => name.startsWith(id.toString()));
+    const folder = filesAndFolders.find(name => name.split('_')[0] == id.toString());
     return folder ? path.join(directory, folder) : null;
 }
 
@@ -77,13 +77,13 @@ async function getChapterDetail(comicId, chapterId) {
     let resp = await DefaultAxiosProxy.get(url, {
         userAgent: COMIC_DEFAULT_UA
     }).catch(e => {
-        console.error(`Error getting comic chapter detail`, e)
+        console.error(`Error getting comic chapter detail with URL ${url}`, e)
         return null
     })  
     let protoMsgBuf = decryptBlocksWithDefaultKey(resp.data)
     let respObj = await ProtoUtils.decode(PROTO_TEMPLATE, "comic.ChapterResponse", protoMsgBuf)
-    if (respObj.errno || respObj.errmsg) {
-        console.log(`Error getting novel chapters, errno: ${respObj.errno}, errmsg: ${errmsg}`)
+    if (respObj.errno || respObj.errmsg || !respObj.data) {
+        console.log(`Error getting novel chapters, got response: ${JSON.stringify(respObj)}`)
         return null
     }
     //handle long

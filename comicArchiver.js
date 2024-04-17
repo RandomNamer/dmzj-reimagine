@@ -9,10 +9,14 @@ const { getComicDetail, getChapterDetail, COMIC_DEFAULT_UA, findComicFolderById,
 const { arch } = require("os");
 const { info } = require('console');
 
-const COMIC_ID = 47971;
+// const COMIC_ID = 54990; //no chapters
+// const COMIC_ID = 40970; //May small chapters
+const COMIC_ID = 52117  ;  //May large chapters
+// const COMIC_ID = 47880;
+
 const COMIC_OUTPUT_DIR = "/Volumes/medialibrary/Books/Comic/dmzj/raw"
 const CBZ_OUTPUT_DIR = "/Volumes/medialibrary/Books/Comic/dmzj/cbz"
-const ENABLE_HIGH_QUALITY = true
+const ENABLE_HIGH_QUALITY = true;
 
 
 
@@ -33,7 +37,7 @@ async function downloadImage(imageUrl, folder, retries = 0, redownload = false, 
     }
     const imagePath = path.join(folder, imageName)
     if (!redownload && fs.existsSync(imagePath) && fs.statSync(imagePath).size > 0) return true;
-    if (verbose) console.log(`Downloading image ${imageName} from ${imageUrl}`)
+    if (verbose) console.log(`Downloading image ${imageName} from ${imageUrl} to ${folder}`)
     do {
         try {
             const response = await DefaultAxiosProxy.get(
@@ -82,49 +86,265 @@ async function downloadChapterImages(imageList, folder, retries, redownload = fa
     return successCount;
 }
 
-async function archiveAll(id, rootDir, preferHighQuality = true) {
+// async function archiveAll(id, rootDir, preferHighQuality = true) {
+//     let comicInfo = await getComicDetail(id);
+//     if (!comicInfo || !comicInfo.id) {
+//         console.error("Error getting comic detail");
+//         return;
+//     }
+//     console.log("Got comic info of", comicInfo.title);
+//     console.log(`Updated at ${new Date(comicInfo.lastUpdatetime * 1000).toLocaleString()}, lateste chapter: ${comicInfo.lastUpdateChapterName}, chapterCount: ${comicInfo.chapters.map(v => v.data.length)}`);
+//     const workingDir = path.join(rootDir, `${comicInfo.id}_${comicInfo.title}`);
+//     if (!fs.existsSync(workingDir)) {
+//         fs.mkdirSync(workingDir);
+//     }
+//     let archiveResult = {
+//         id: comicInfo.id,
+//         title: comicInfo.title,
+//         time: Math.floor(new Date().getTime()),
+//         chapters: new Map()
+//     }
+//     let chapterDetailsCache = new Map()
+//     for (volume of comicInfo.chapters) {
+//         const volumeDir = path.join(workingDir, volume.title);
+//         if (!fs.existsSync(volumeDir)) {
+//             fs.mkdirSync(volumeDir);
+//         }
+//         //Sort chapters increasing order, for incremental we do it reversely
+//         for (chapter of volume.data.sort((a, b) => a.chapterOrder - b.chapterOrder)) {
+//             const chapterDir = path.join(volumeDir, chapter.chapterTitle);
+//             if (!fs.existsSync(chapterDir)) {
+//                 fs.mkdirSync(chapterDir);
+//             }
+//             let chapterDetail = await getChapterDetail(comicInfo.id, chapter.chapterId);
+            
+//             if (!chapterDetail) {
+//                 console.error(`Error getting chapter detail for ${chapter.chapterTitle}`);
+//                 continue;
+//             }
+//             chapterDetail.fetchTime = Math.floor(new Date().getTime());
+//             chapterDetailsCache.set(chapterDetail.chapterId, chapterDetail);
+
+//             const imageList = (preferHighQuality && chapterDetail.pageUrlHd) ? chapterDetail.pageUrlHd : chapterDetail.pageUrl;
+            
+//             const successCount = await downloadChapterImages(imageList, chapterDir, 2, false);
+            
+//             const imageCount = chapterDetail.picnum ? chapterDetail.picnum : imageList.length;
+
+//             console.log(`Downloaded ${successCount} of ${imageCount} images of ${volume.title} > ${chapter.chapterTitle}`) 
+//             archiveResult.chapters.set(
+//                 chapter.chapterId, 
+//                 {
+//                     id: chapter.chapterId,
+//                     title: chapter.chapterTitle,
+//                     volume: volume.title,
+//                     time: Math.floor(new Date().getTime()),
+//                     downloaded: successCount == chapterDetail.picnum,
+//                     successCount: successCount
+//                 }
+//             )
+//         }
+//     }
+//     archiveResult.chapters = Array.from(archiveResult.chapters.values());
+//     console.log("Finished archiving all chapters:", archiveResult.chapters.map(c => {return JSON.stringify({ title: c.title, total: c.picnum, success: c.successCount}) }) );
+//     const infoPath = path.join(workingDir, "info.json");
+//     const imageUrlsPath = path.join(workingDir, "image_urls.json");
+//     fs.writeFileSync(infoPath, JSON.stringify({
+//         comicInfo: comicInfo,
+//         archiveResult: archiveResult
+//     }));
+//     fs.writeFileSync(imageUrlsPath, JSON.stringify(Array.from(chapterDetailsCache.entries())));
+//     console.log("Done")
+// }
+
+// async function increamentalArchive(id, workingDir, preferHighQuality = true) {
+//     let comicInfo = await getComicDetail(id);
+//     if (!comicInfo) {
+//         console.error("Error getting comic detail");
+//         return;
+//     }
+//     let archiveResult = JSON.parse(fs.readFileSync(path.join(workingDir, "info.json"))).archiveResult;
+//     let imageListCache = JSON.parse(fs.readFileSync(path.join(workingDir, "image_urls.json")));
+//     //If something not downloaded last time and the comic doesn't have new chapters, we can reuse the cache.
+//     const useImageUrlCache = (imageListCache && archiveResult.time >= comicInfo.lastUpdatetime);
+//     let chapterDetailsCache = imageListCache ? new Map(imageListCache) : new Map();
+//     if (archiveResult && archiveResult.id == comicInfo.id) {
+//         archiveResult.chapters = new Map(archiveResult.chapters.map(chap => [chap.id, chap]));
+//         console.log("Starting incremental archive");
+//         for (volume of comicInfo.chapters) {
+//             const volumeDir = path.join(workingDir, volume.title);
+//             if (!fs.existsSync(volumeDir)) {
+//                 fs.mkdirSync(volumeDir);
+//             }
+//             for (chapter of volume.data.sort((a, b) => b.chapterOrder - a.chapterOrder)) {
+//                 const chapterDir = path.join(volumeDir, chapter.chapterTitle);
+//                 if (!fs.existsSync(chapterDir)) {
+//                     fs.mkdirSync(chapterDir);
+//                 }
+
+//                 //Use imageList cache if available
+//                 //process of long chapterId:
+//                 chapter.chapterId = chapter.chapterId.toNumber();
+//                 const cachedDetail = chapterDetailsCache.get(chapter.chapterId);
+//                 let chapterDetail;
+//                 if (useImageUrlCache && cachedDetail) {
+//                     chapterDetail = cachedDetail;
+//                 } else {
+//                     chapterDetail = await getChapterDetail(comicInfo.id, chapter.chapterId);
+//                     chapterDetail.fetchTime = Math.floor(new Date().getTime());
+//                     chapterDetailsCache.set(chapterDetail.chapterId, chapterDetail);
+//                 }
+
+//                 if (!chapterDetail) {
+//                     console.error(`Error getting chapter detail for ${chapter.chapterTitle}`);
+//                     continue;
+//                 }
+
+//                 const imageList = (preferHighQuality && chapterDetail.pageUrlHd) ? chapterDetail.pageUrlHd : chapterDetail.pageUrl;
+                
+//                 const imageCount = chapterDetail.picnum ? chapterDetail.picnum : imageList.length; //Sometimes picnum is not available
+
+//                //Update chapter detail first to keep urls list to be the latest
+//                 const prevChapterResult = archiveResult.chapters.get(chapter.chapterId);
+//                 if (prevChapterResult && prevChapterResult.downloaded &&
+//                      prevChapterResult.successCount == imageCount //just fail safe
+//                 ) {
+//                     console.log(`Chapter ${chapter.chapterTitle} already downloaded, skipping`);
+//                     continue;
+//                 }
+
+//                 const successCount = await downloadChapterImages(imageList, chapterDir, 2, false);
+//                 console.log(`Downloaded ${successCount} of ${chapterDetail.picnum} images of ${chapter.chapterTitle}`) 
+//                 archiveResult.chapters.set(
+//                     chapter.chapterId, 
+//                     {
+//                         id: chapter.chapterId,
+//                         title: chapter.chapterTitle,
+//                         volume: volume.title,
+//                         time: Math.floor(new Date().getTime()),
+//                         downloaded: successCount == chapterDetail.picnum,
+//                         successCount: successCount
+//                     }
+//                 )
+//             }
+        
+//         }
+//         archiveResult.chapters = Array.from(archiveResult.chapters.values());
+//         console.log("Finished archiving all chapters:", archiveResult.chapters.map(c => {return JSON.stringify({ title: c.title, total: c.picnum, success: c.successCount}) }) );
+
+//         const infoPath = path.join(workingDir, "info.json");
+//         const imageUrlsPath = path.join(workingDir, "image_urls.json");
+//         fs.writeFileSync(infoPath, JSON.stringify({
+//             comicInfo: comicInfo,
+//             archiveResult: archiveResult
+//         }));
+//         fs.writeFileSync(imageUrlsPath, JSON.stringify(Array.from(chapterDetailsCache.entries())));
+//         downloadImage(comicInfo.cover, workingDir, 2, false, "cover", true);
+//         console.log("Done")
+//     } else {
+//         console.log("Archive result not found or id mismatch, starting fresh");
+//         archiveAll(id, path.dirname(workingDir), preferHighQuality);
+//     }
+// }
+
+async function archive(id, rootDir, preferHighQuality = true, incremental = false) {
     let comicInfo = await getComicDetail(id);
-    if (!comicInfo) {
+    if (!comicInfo || !comicInfo.id) {
         console.error("Error getting comic detail");
         return;
     }
+
     console.log("Got comic info of", comicInfo.title);
+    console.log(`Updated at ${new Date(comicInfo.lastUpdatetime * 1000).toLocaleString()}, latest chapter: ${comicInfo.lastUpdateChapterName}, chapterCount: ${comicInfo.chapters.map(v => v.data.length)}`);
+
     const workingDir = path.join(rootDir, `${comicInfo.id}_${comicInfo.title}`);
     if (!fs.existsSync(workingDir)) {
         fs.mkdirSync(workingDir);
     }
+
     let archiveResult = {
         id: comicInfo.id,
         title: comicInfo.title,
         time: Math.floor(new Date().getTime()),
         chapters: new Map()
     }
-    let chapterDetailsCache = new Map()
+
+    let chapterDetailsCache = new Map();
+    let useImageUrlCache = false;
+    if (incremental) {
+        archiveResult = JSON.parse(fs.readFileSync(path.join(workingDir, "info.json"))).archiveResult;
+        if (archiveResult && archiveResult.id == comicInfo.id) {
+            console.log("Starting incremental archive for", comicInfo.title);
+        } else {
+            console.log("Archive result not found or id mismatch, starting fresh");
+            archive(id, rootDir, preferHighQuality, false);
+        }
+        let imageListCache = JSON.parse(fs.readFileSync(path.join(workingDir, "image_urls.json")));
+        useImageUrlCache = (imageListCache && archiveResult.time >= comicInfo.lastUpdatetime);
+        chapterDetailsCache = imageListCache ? new Map(imageListCache) : new Map();
+        archiveResult.chapters = new Map(archiveResult.chapters.map(chap => [chap.id, chap]));
+    }
+
     for (volume of comicInfo.chapters) {
         const volumeDir = path.join(workingDir, volume.title);
         if (!fs.existsSync(volumeDir)) {
             fs.mkdirSync(volumeDir);
         }
-        //Sort chapters increasing order, for incremental we do it reversely
+
         for (chapter of volume.data.sort((a, b) => a.chapterOrder - b.chapterOrder)) {
             const chapterDir = path.join(volumeDir, chapter.chapterTitle);
             if (!fs.existsSync(chapterDir)) {
                 fs.mkdirSync(chapterDir);
             }
-            let chapterDetail = await getChapterDetail(comicInfo.id, chapter.chapterId);
-            
+
+            let chapterDetail;
+            chapter.chapterId = chapter.chapterId.toNumber();
+            const cachedDetail = chapterDetailsCache.get(chapter.chapterId);
+            if (incremental && useImageUrlCache && cachedDetail) {
+                chapterDetail = cachedDetail;
+            } else {
+                chapterDetail = await getChapterDetail(comicInfo.id, chapter.chapterId);
+                chapterDetail.fetchTime = Math.floor(new Date().getTime());
+                chapterDetailsCache.set(chapterDetail.chapterId, chapterDetail);
+            }
+
             if (!chapterDetail) {
                 console.error(`Error getting chapter detail for ${chapter.chapterTitle}`);
                 continue;
             }
-            chapterDetail.fetchTime = Math.floor(new Date().getTime());
-            chapterDetailsCache.set(chapterDetail.chapterId, chapterDetail);
-
-            const imageList = (preferHighQuality && chapterDetail.pageUrlHd) ? chapterDetail.pageUrlHd : chapterDetail.pageUrl;
             
-            const successCount = await downloadChapterImages(imageList, chapterDir, 2, false);
+            let doSelectHighQuality = preferHighQuality === true && chapterDetail.pageUrlHd != null;
+            const imageList = doSelectHighQuality ? chapterDetail.pageUrlHd : chapterDetail.pageUrl;
+            const imageCount = chapterDetail.picnum ? chapterDetail.picnum : imageList.length;
 
-            console.log(`Downloaded ${successCount} of ${chapterDetail.picnum} images of ${volume.title} > ${chapter.chapterTitle}`) 
+            //Update chapter detail first to keep urls list to be the latest
+            const prevChapterResult = archiveResult.chapters.get(chapter.chapterId);
+            if (prevChapterResult) {
+                if (prevChapterResult.isHighQuality === false && doSelectHighQuality == true) {
+                    console.log(`Will do upgrade quality for ${volume.title} > ${chapter.chapterTitle}, removing prev download`)
+                    prevChapterResult.downloaded = false;
+                    fs.rmSync(chapterDir, {recursive: true});
+                    fs.mkdirSync(chapterDir);
+                }
+                if (prevChapterResult.downloaded && 
+                    prevChapterResult.successCount == imageCount
+                ) {
+                    console.log(`Skipping ${volume.title} > ${chapter.chapterTitle} as it's already downloaded`);
+                    continue;    
+                }
+            }
+
+            let successCount = await downloadChapterImages(imageList, chapterDir, 2, false);
+
+            console.log(`Downloaded ${successCount} of ${imageCount} images of ${volume.title} > ${chapter.chapterTitle}`) 
+            
+            if (successCount < 1) {
+                console.log("Failed to download any images, trying another quality");
+                const alternativeImageList = doSelectHighQuality ? chapterDetail.pageUrl : chapterDetail.pageUrlHd;
+                successCount = await downloadChapterImages(alternativeImageList, chapterDir, 2, false);
+                doSelectHighQuality = !doSelectHighQuality;
+            }
+
             archiveResult.chapters.set(
                 chapter.chapterId, 
                 {
@@ -132,12 +352,14 @@ async function archiveAll(id, rootDir, preferHighQuality = true) {
                     title: chapter.chapterTitle,
                     volume: volume.title,
                     time: Math.floor(new Date().getTime()),
-                    downloaded: successCount == chapterDetail.picnum,
-                    successCount: successCount
+                    downloaded: successCount == imageCount,
+                    successCount: successCount,
+                    isHighQuality: doSelectHighQuality,
                 }
             )
         }
     }
+
     archiveResult.chapters = Array.from(archiveResult.chapters.values());
     console.log("Finished archiving all chapters:", archiveResult.chapters.map(c => {return JSON.stringify({ title: c.title, total: c.picnum, success: c.successCount}) }) );
     const infoPath = path.join(workingDir, "info.json");
@@ -147,96 +369,10 @@ async function archiveAll(id, rootDir, preferHighQuality = true) {
         archiveResult: archiveResult
     }));
     fs.writeFileSync(imageUrlsPath, JSON.stringify(Array.from(chapterDetailsCache.entries())));
+    await downloadImage(comicInfo.cover, workingDir, 2, false, "cover", true);
     console.log("Done")
 }
 
-async function increamentalArchive(id, workingDir, preferHighQuality = true) {
-    let comicInfo = await getComicDetail(id);
-    if (!comicInfo) {
-        console.error("Error getting comic detail");
-        return;
-    }
-    let archiveResult = JSON.parse(fs.readFileSync(path.join(workingDir, "info.json"))).archiveResult;
-    let imageListCache = JSON.parse(fs.readFileSync(path.join(workingDir, "image_urls.json")));
-    //If something not downloaded last time and the comic doesn't have new chapters, we can reuse the cache.
-    const useImageUrlCache = (imageListCache && archiveResult.time >= comicInfo.lastUpdatetime);
-    let chapterDetailsCache = imageListCache ? new Map(imageListCache) : new Map();
-    if (archiveResult && archiveResult.id == comicInfo.id) {
-        archiveResult.chapters = new Map(archiveResult.chapters.map(chap => [chap.id, chap]));
-        console.log("Starting incremental archive");
-        for (volume of comicInfo.chapters) {
-            const volumeDir = path.join(workingDir, volume.title);
-            if (!fs.existsSync(volumeDir)) {
-                fs.mkdirSync(volumeDir);
-            }
-            for (chapter of volume.data.sort((a, b) => b.chapterOrder - a.chapterOrder)) {
-                const chapterDir = path.join(volumeDir, chapter.chapterTitle);
-                if (!fs.existsSync(chapterDir)) {
-                    fs.mkdirSync(chapterDir);
-                }
-
-                //Use imageList cache if available
-                //process of long chapterId:
-                chapter.chapterId = chapter.chapterId.toNumber();
-                const cachedDetail = chapterDetailsCache.get(chapter.chapterId);
-                let chapterDetail;
-                if (useImageUrlCache && cachedDetail) {
-                    chapterDetail = cachedDetail;
-                } else {
-                    chapterDetail = await getChapterDetail(comicInfo.id, chapter.chapterId);
-                    chapterDetail.fetchTime = Math.floor(new Date().getTime());
-                    chapterDetailsCache.set(chapterDetail.chapterId, chapterDetail);
-                }
-
-                if (!chapterDetail) {
-                    console.error(`Error getting chapter detail for ${chapter.chapterTitle}`);
-                    continue;
-                }
-
-               //Update chapter detail first to keep urls list to be the latest
-                const prevChapterResult = archiveResult.chapters.get(chapter.chapterId);
-                if (prevChapterResult && prevChapterResult.downloaded &&
-                     prevChapterResult.successCount == chapterDetail.picnum //just fail safe
-                ) {
-                    console.log(`Chapter ${chapter.chapterTitle} already downloaded, skipping`);
-                    continue;
-                }
-
-                const imageList = (preferHighQuality && chapterDetail.pageUrlHd) ? chapterDetail.pageUrlHd : chapterDetail.pageUrl;
-                
-                const successCount = await downloadChapterImages(imageList, chapterDir, 2, false);
-                console.log(`Downloaded ${successCount} of ${chapterDetail.picnum} images of ${chapter.chapterTitle}`) 
-                archiveResult.chapters.set(
-                    chapter.chapterId, 
-                    {
-                        id: chapter.chapterId,
-                        title: chapter.chapterTitle,
-                        volume: volume.title,
-                        time: Math.floor(new Date().getTime()),
-                        downloaded: successCount == chapterDetail.picnum,
-                        successCount: successCount
-                    }
-                )
-            }
-        
-        }
-        archiveResult.chapters = Array.from(archiveResult.chapters.values());
-        console.log("Finished archiving all chapters:", archiveResult.chapters.map(c => {return JSON.stringify({ title: c.title, total: c.picnum, success: c.successCount}) }) );
-
-        const infoPath = path.join(workingDir, "info.json");
-        const imageUrlsPath = path.join(workingDir, "image_urls.json");
-        fs.writeFileSync(infoPath, JSON.stringify({
-            comicInfo: comicInfo,
-            archiveResult: archiveResult
-        }));
-        fs.writeFileSync(imageUrlsPath, JSON.stringify(Array.from(chapterDetailsCache.entries())));
-        downloadImage(comicInfo.cover, workingDir, 2, false, "cover", true);
-        console.log("Done")
-    } else {
-        console.log("Archive result not found or id mismatch, starting fresh");
-        archiveAll(id, path.dirname(workingDir), preferHighQuality);
-    }
-}
 
 
 async function main() {
@@ -247,19 +383,35 @@ async function main() {
             const info = JSON.parse(fs.readFileSync(infoPath));
             if (!info.archiveResult) {
                 console.log("No downloaded chapters found, starting fresh");
-                return;
+                throw new Error("No archive result found");
             }
             //Ensured exit here
-            increamentalArchive(COMIC_ID, workingDir, ENABLE_HIGH_QUALITY);
+            // increamentalArchive(COMIC_ID, workingDir, ENABLE_HIGH_QUALITY);
+            await archive(COMIC_ID, COMIC_OUTPUT_DIR, ENABLE_HIGH_QUALITY, true);
             return;
         } catch (error) {
             console.error("Error reading download history", error);
             console.log("No download history found, starting fresh");
         }
     } 
-    archiveAll(COMIC_ID, COMIC_OUTPUT_DIR, ENABLE_HIGH_QUALITY);
+    // archiveAll(COMIC_ID, COMIC_OUTPUT_DIR, ENABLE_HIGH_QUALITY);
+    await archive(COMIC_ID, COMIC_OUTPUT_DIR, ENABLE_HIGH_QUALITY, false);
     return;
 }
 
-// main()
-makeCbz(findComicFolderById(COMIC_OUTPUT_DIR, COMIC_ID), CBZ_OUTPUT_DIR)
+main().then(() => {
+    console.log("Update done, making cbz...");
+    makeCbz(findComicFolderById(COMIC_OUTPUT_DIR, COMIC_ID), CBZ_OUTPUT_DIR).then(() => {    
+        console.log("CBZ done");
+        exit(0);
+    }).catch(e => {
+        console.error("Error making cbz", e);
+        exit(1);
+    });
+    
+}).catch(e => {
+    console.error("Error syncing comic with local:", e);
+    exit(1);
+})
+
+// makeCbz(findComicFolderById(COMIC_OUTPUT_DIR, COMIC_ID), CBZ_OUTPUT_DIR)

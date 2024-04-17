@@ -28,12 +28,16 @@ function decryptBlocksWithDefaultKey(text){
             }
         }
         else {
-            decryptedBufs.push(
-                crypto.privateDecrypt({
-                    key: pemKey,
-                    padding: crypto.constants.RSA_PKCS1_PADDING,
-                }, buf.slice(loc, textLen))
-            )
+            try {
+                decryptedBufs.push(
+                    crypto.privateDecrypt({
+                        key: pemKey,
+                        padding: crypto.constants.RSA_PKCS1_PADDING,
+                    }, buf.slice(loc, textLen))
+                )
+            } catch (error) {
+                console.log(error)
+            }
         }
         loc += 128
     }
