@@ -11,12 +11,14 @@ const { info } = require('console');
 
 // const COMIC_ID = 54990; //no chapters
 // const COMIC_ID = 40970; //May small chapters
-const COMIC_ID = 52117  ;  //May large chapters
-// const COMIC_ID = 47880;
+// const COMIC_ID = 52117  ;  //May large chapters
+const COMIC_ID = 186;
 
 const COMIC_OUTPUT_DIR = "/Volumes/medialibrary/Books/Comic/dmzj/raw"
 const CBZ_OUTPUT_DIR = "/Volumes/medialibrary/Books/Comic/dmzj/cbz"
 const ENABLE_HIGH_QUALITY = true;
+const PRINT_URL_THRESH_REDOWNLOAD = 10; //Batch downloading of many images may fail several, print URL when download failed less than this number
+const VOLUME_SPLIT_MULTIPLIER = 1000; // Larger than possible chapter count in a volume of a comic
 
 
 
@@ -77,7 +79,7 @@ async function downloadImage(imageUrl, folder, retries = 0, redownload = false, 
  */
 async function downloadChapterImages(imageList, folder, retries, redownload = false, verbose = false) {
     const downloadPromises = imageList.map((imageUrl, index) => {
-        return downloadImage(imageUrl, folder, retries, redownload, verbose=verbose);
+        return downloadImage(imageUrl, folder, retries, redownload, false, verbose);
     });
 
     //If some images failed, consider this chapter is failed and won't be recorded as downloaded.
@@ -315,10 +317,12 @@ async function archive(id, rootDir, preferHighQuality = true, incremental = fals
             
             let doSelectHighQuality = preferHighQuality === true && chapterDetail.pageUrlHd != null;
             const imageList = doSelectHighQuality ? chapterDetail.pageUrlHd : chapterDetail.pageUrl;
-            const imageCount = chapterDetail.picnum ? chapterDetail.picnum : imageList.length;
+            // const imageCount = chapterDetail.picnum ? chapterDetail.picnum : imageList.length;
+            const imageCount = imageList.length;    //Sometimes picnum is not available or not accurate if worse
 
             //Update chapter detail first to keep urls list to be the latest
             const prevChapterResult = archiveResult.chapters.get(chapter.chapterId);
+            let logImageUrlWhenDownload = false;
             if (prevChapterResult) {
                 if (prevChapterResult.isHighQuality === false && doSelectHighQuality == true) {
                     console.log(`Will do upgrade quality for ${volume.title} > ${chapter.chapterTitle}, removing prev download`)
@@ -332,16 +336,22 @@ async function archive(id, rootDir, preferHighQuality = true, incremental = fals
                     console.log(`Skipping ${volume.title} > ${chapter.chapterTitle} as it's already downloaded`);
                     continue;    
                 }
+                if ( imageCount - prevChapterResult.successCount < PRINT_URL_THRESH_REDOWNLOAD) {
+                    logImageUrlWhenDownload = true;
+                }
             }
 
-            let successCount = await downloadChapterImages(imageList, chapterDir, 2, false);
+            const downloadVerboseLogging = logImageUrlWhenDownload && true;
+
+            let successCount = await downloadChapterImages(imageList, chapterDir, 2, false, downloadVerboseLogging);
 
             console.log(`Downloaded ${successCount} of ${imageCount} images of ${volume.title} > ${chapter.chapterTitle}`) 
             
             if (successCount < 1) {
                 console.log("Failed to download any images, trying another quality");
                 const alternativeImageList = doSelectHighQuality ? chapterDetail.pageUrl : chapterDetail.pageUrlHd;
-                successCount = await downloadChapterImages(alternativeImageList, chapterDir, 2, false);
+                successCount = await downloadChapterImages(alternativeImageList, chapterDir, 2, false, downloadVerboseLogging);
+                console.log(`Downloaded ${successCount} of ${imageCount} images of ${volume.title} > ${chapter.chapterTitle} with alternative quality`)
                 doSelectHighQuality = !doSelectHighQuality;
             }
 
@@ -380,28 +390,31 @@ async function main() {
     if (workingDir) {
         const infoPath = path.join(workingDir, "info.json");
         try {
+            // Existing data check
             const info = JSON.parse(fs.readFileSync(infoPath));
             if (!info.archiveResult) {
-                console.log("No downloaded chapters found, starting fresh");
                 throw new Error("No archive result found");
             }
-            //Ensured exit here
-            // increamentalArchive(COMIC_ID, workingDir, ENABLE_HIGH_QUALITY);
-            await archive(COMIC_ID, COMIC_OUTPUT_DIR, ENABLE_HIGH_QUALITY, true);
-            return;
         } catch (error) {
             console.error("Error reading download history", error);
             console.log("No download history found, starting fresh");
+            // archiveAll(COMIC_ID, COMIC_OUTPUT_DIR, ENABLE_HIGH_QUALITY);
+            await archive(COMIC_ID, COMIC_OUTPUT_DIR, ENABLE_HIGH_QUALITY, false);
+            return;
         }
-    } 
-    // archiveAll(COMIC_ID, COMIC_OUTPUT_DIR, ENABLE_HIGH_QUALITY);
-    await archive(COMIC_ID, COMIC_OUTPUT_DIR, ENABLE_HIGH_QUALITY, false);
-    return;
+
+        //Ensured exit here
+        // increamentalArchive(COMIC_ID, workingDir, ENABLE_HIGH_QUALITY);
+        await archive(COMIC_ID, COMIC_OUTPUT_DIR, ENABLE_HIGH_QUALITY, true);
+    } else {
+        // archiveAll(COMIC_ID, COMIC_OUTPUT_DIR, ENABLE_HIGH_QUALITY);
+        await archive(COMIC_ID, COMIC_OUTPUT_DIR, ENABLE_HIGH_QUALITY, false);
+    }
 }
 
 main().then(() => {
     console.log("Update done, making cbz...");
-    makeCbz(findComicFolderById(COMIC_OUTPUT_DIR, COMIC_ID), CBZ_OUTPUT_DIR).then(() => {    
+    makeCbz(findComicFolderById(COMIC_OUTPUT_DIR, COMIC_ID), CBZ_OUTPUT_DIR, VOLUME_SPLIT_MULTIPLIER).then(() => {    
         console.log("CBZ done");
         exit(0);
     }).catch(e => {
