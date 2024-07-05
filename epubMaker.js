@@ -9,7 +9,7 @@ const Epub = require("epub-gen")
 //TODO: refractor of main function; increamental update;
 
 // url = "https://xs.dmzj.com/3638/index.shtml"
-id = 2304;
+id = 2403;
 //Incremental is not necessary now
 // updateFrom = "/Users/zzy/Downloads/dmzj/3236_我的初恋对象与人接吻了/我的初恋对象与人接吻了.epub"
 
@@ -45,9 +45,9 @@ async function makeEpub(novelId) {
         }
         volume.chapters = volume.chapters.sort((a, b) => a.chapterOrder - b.chapterOrder)
     }
-    // volumes = volumes.sort((a, b) => a.volumeOrder - b.volumeOrder)
+    volumes = volumes.sort((a, b) => a.volumeOrder - b.volumeOrder)
     let volumesStr = JSON.stringify(volumes)
-    console.log("Successfully get raw text", volumesStr)
+    console.log("Successfully get raw text of", volumesStr)
     const workingDir = path.join(outputDir, `${info.novelId}_${info.name}`)
     if (!fs.existsSync(workingDir)) {
         fs.mkdirSync(workingDir);
@@ -55,7 +55,11 @@ async function makeEpub(novelId) {
     fs.writeFileSync(path.join(workingDir, 'volumes.json'), volumesStr, err => {
         console.error(err)
     })
-
+    let infoPrint = info.toJSON()
+    infoPrint.lastFetchTime = new Date()
+    fs.writeFileSync(path.join(workingDir, 'info.json'), JSON.stringify(infoPrint), err => {
+        console.error(err)
+    })
     var content = []
     volumes.forEach(vol => {
         content.push({
@@ -68,6 +72,11 @@ async function makeEpub(novelId) {
                 data: `<div>${chap.text}</div>`
             })
         }
+        //Add split page
+        content.push({
+            title: "",
+            data: "<div><hr></div>"
+        })
     })
 
     const options = {
@@ -77,6 +86,8 @@ async function makeEpub(novelId) {
         lang: "zh",
         tocTitle: "目录",
         content: content,
+        appendChapterTitles: true,
+        publisher: "dmzjEpubMaker by RandomNamer",
         verbose: true
     }
 
