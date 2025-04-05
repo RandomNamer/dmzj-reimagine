@@ -5,30 +5,31 @@ const fs = require("fs")
 const path = require("path")
 const url = require("url")
 
-const { getComicDetail, getChapterDetail, COMIC_DEFAULT_UA, findComicFolderById, makeCbz } = require("./comic");
-const { arch } = require("os");
-const { info } = require('console');
+const { getComicDetail, getChapterDetail, findComicFolderById, makeCbz } = require("./comic");
+const { timestampToLocaleString } = require("./utils/date")
+
 
 // const COMIC_ID = 54990; //no chapters
 // const COMIC_ID = 40970; //May small chapters
-// const COMIC_ID = 52117  ;  //May large chapters
-const COMIC_ID = 186;
+// const COMIC_ID = 27430  ;  //May large chapters
+// const COMIC_ID = 7020; //Yuru Yuri! Many chapters, many volumes, the holy grail of test case
+const COMIC_ID = 48918;
 
 const COMIC_OUTPUT_DIR = "/Volumes/medialibrary/Books/Comic/dmzj/raw"
 const CBZ_OUTPUT_DIR = "/Volumes/medialibrary/Books/Comic/dmzj/cbz"
 const ENABLE_HIGH_QUALITY = true;
 const PRINT_URL_THRESH_REDOWNLOAD = 10; //Batch downloading of many images may fail several, print URL when download failed less than this number
 const VOLUME_SPLIT_MULTIPLIER = 1000; // Larger than possible chapter count in a volume of a comic
+const SUPPRESS_UPSTREAM_ERROR = false; //TODO: implement this
 
 
-
-module.exports = { findComicFolderById , COMIC_ID, COMIC_OUTPUT_DIR }
+module.exports = { COMIC_ID, COMIC_OUTPUT_DIR }
 
 /**
  * 
  * @param {string} url 
  * @param {string} folder
- * @returns {Promise<>} 
+ * @returns {Promise<Boolean>} 
  */
 async function downloadImage(imageUrl, folder, retries = 0, redownload = false, forceImageName=null, verbose = false) {
     const parsedUrl = decodeURIComponent(imageUrl);
@@ -39,16 +40,13 @@ async function downloadImage(imageUrl, folder, retries = 0, redownload = false, 
     }
     const imagePath = path.join(folder, imageName)
     if (!redownload && fs.existsSync(imagePath) && fs.statSync(imagePath).size > 0) return true;
-    if (verbose) console.log(`Downloading image ${imageName} from ${imageUrl} to ${folder}`)
+    // if (verbose) console.log(`Downloading image ${imageName} from ${imageUrl} to ${folder}`)
     do {
         try {
             const response = await DefaultAxiosProxy.get(
                 imageUrl, 
                 {
                     responseType: 'stream',
-                    headers: {
-                        'User-Agent': COMIC_DEFAULT_UA
-                    }
                 }
             );
 
@@ -66,10 +64,11 @@ async function downloadImage(imageUrl, folder, retries = 0, redownload = false, 
 
             return true;
         } catch (error) {
-            console.error(`Failed to download image. Retries left: ${retries - 1}`, imageUrl, error);
+            if (verbose) console.error(`Failed to download image. Retries left: ${retries - 1}`, imageUrl, error);
             retries--;
         }
     } while (retries > 0);
+    console.error(`Failed to download image after ${retries} retries: ${imageUrl}`);
     return false;
 }
 
@@ -256,8 +255,8 @@ async function archive(id, rootDir, preferHighQuality = true, incremental = fals
         return;
     }
 
-    console.log("Got comic info of", comicInfo.title);
-    console.log(`Updated at ${new Date(comicInfo.lastUpdatetime * 1000).toLocaleString()}, latest chapter: ${comicInfo.lastUpdateChapterName}, chapterCount: ${comicInfo.chapters.map(v => v.data.length)}`);
+    console.log("Got comic info of", id, comicInfo.title);
+    console.log(`Updated at ${timestampToLocaleString(comicInfo.lastUpdatetime)}, latest chapter: ${comicInfo.lastUpdateChapterName}, chapterCount: ${comicInfo.chapters.map(v => v.data.length)}`);
 
     const workingDir = path.join(rootDir, `${comicInfo.id}_${comicInfo.title}`);
     if (!fs.existsSync(workingDir)) {
@@ -279,21 +278,24 @@ async function archive(id, rootDir, preferHighQuality = true, incremental = fals
             console.log("Starting incremental archive for", comicInfo.title);
         } else {
             console.log("Archive result not found or id mismatch, starting fresh");
-            archive(id, rootDir, preferHighQuality, false);
+            await archive(id, rootDir, preferHighQuality, false);
         }
         let imageListCache = JSON.parse(fs.readFileSync(path.join(workingDir, "image_urls.json")));
         useImageUrlCache = (imageListCache && archiveResult.time >= comicInfo.lastUpdatetime);
         chapterDetailsCache = imageListCache ? new Map(imageListCache) : new Map();
-        archiveResult.chapters = new Map(archiveResult.chapters.map(chap => [chap.id, chap]));
+        archiveResult.chapters = new Map(archiveResult.chapters.map(chap => {
+            Object.assign(chap, {isUpdated: false});
+            return [chap.id, chap]
+        }));
     }
 
-    for (volume of comicInfo.chapters) {
+    for (const volume of comicInfo.chapters) {
         const volumeDir = path.join(workingDir, volume.title);
         if (!fs.existsSync(volumeDir)) {
             fs.mkdirSync(volumeDir);
         }
 
-        for (chapter of volume.data.sort((a, b) => a.chapterOrder - b.chapterOrder)) {
+        for (const chapter of volume.data.sort((a, b) => a.chapterOrder - b.chapterOrder)) {
             const chapterDir = path.join(volumeDir, chapter.chapterTitle);
             if (!fs.existsSync(chapterDir)) {
                 fs.mkdirSync(chapterDir);
@@ -306,12 +308,16 @@ async function archive(id, rootDir, preferHighQuality = true, incremental = fals
                 chapterDetail = cachedDetail;
             } else {
                 chapterDetail = await getChapterDetail(comicInfo.id, chapter.chapterId);
+                if (chapterDetail == null) {
+                    if (!SUPPRESS_UPSTREAM_ERROR) console.error(`Error getting chapter detail, skipping ${volume.title} > ${chapter.chapterTitle}`);
+                    continue;
+                }
                 chapterDetail.fetchTime = Math.floor(new Date().getTime());
                 chapterDetailsCache.set(chapterDetail.chapterId, chapterDetail);
             }
 
             if (!chapterDetail) {
-                console.error(`Error getting chapter detail for ${chapter.chapterTitle}`);
+                if (!SUPPRESS_UPSTREAM_ERROR) console.error(`Error getting chapter detail for ${chapter.chapterTitle}`);
                 continue;
             }
             
@@ -356,7 +362,7 @@ async function archive(id, rootDir, preferHighQuality = true, incremental = fals
             }
 
             archiveResult.chapters.set(
-                chapter.chapterId, 
+                chapter.chapterId,
                 {
                     id: chapter.chapterId,
                     title: chapter.chapterTitle,
@@ -365,6 +371,7 @@ async function archive(id, rootDir, preferHighQuality = true, incremental = fals
                     downloaded: successCount == imageCount,
                     successCount: successCount,
                     isHighQuality: doSelectHighQuality,
+                    isUpdated: true
                 }
             )
         }
@@ -372,13 +379,14 @@ async function archive(id, rootDir, preferHighQuality = true, incremental = fals
 
     archiveResult.chapters = Array.from(archiveResult.chapters.values());
     console.log("Finished archiving all chapters:", archiveResult.chapters.map(c => {return JSON.stringify({ title: c.title, total: c.picnum, success: c.successCount}) }) );
-    const infoPath = path.join(workingDir, "info.json");
-    const imageUrlsPath = path.join(workingDir, "image_urls.json");
-    fs.writeFileSync(infoPath, JSON.stringify({
+
+    fs.writeFileSync(path.join(workingDir, "info.json"), JSON.stringify({
+        contentUpdatedAt: timestampToLocaleString(comicInfo.lastUpdatetime),
         comicInfo: comicInfo,
         archiveResult: archiveResult
-    }));
-    fs.writeFileSync(imageUrlsPath, JSON.stringify(Array.from(chapterDetailsCache.entries())));
+    }, null, 2));
+    fs.writeFileSync(path.join(workingDir, "image_urls.json"), JSON.stringify(Array.from(chapterDetailsCache.entries())));
+    
     await downloadImage(comicInfo.cover, workingDir, 2, false, "cover", true);
     console.log("Done")
 }
@@ -414,7 +422,7 @@ async function main() {
 
 main().then(() => {
     console.log("Update done, making cbz...");
-    makeCbz(findComicFolderById(COMIC_OUTPUT_DIR, COMIC_ID), CBZ_OUTPUT_DIR, VOLUME_SPLIT_MULTIPLIER).then(() => {    
+    makeCbz(findComicFolderById(COMIC_OUTPUT_DIR, COMIC_ID), CBZ_OUTPUT_DIR, VOLUME_SPLIT_MULTIPLIER, true).then(() => {    
         console.log("CBZ done");
         exit(0);
     }).catch(e => {

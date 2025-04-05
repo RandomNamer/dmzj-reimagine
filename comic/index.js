@@ -11,7 +11,7 @@ const { makeCbz } = require("./cbzMaker")
 
 
 const APIV4_DEFAULT_URL = `https://${Constants.API_V4}.${Constants.DOMAIN_DEFAULT}`
-const COMIC_DEFAULT_UA = "Android,DMZJ1,2.9.0"
+const COMIC_DEFAULT_UA = Constants.COMIC_DEFAULT_UA
 
 
 const DETAIL_API = `${APIV4_DEFAULT_URL}/comic/detail/`
@@ -26,7 +26,7 @@ const TEST = {
 }
 
 
-module.exports = { getComicDetail, getChapterDetail, COMIC_DEFAULT_UA, findComicFolderById, makeCbz }
+module.exports = { getComicDetail, getChapterDetail, findComicFolderById, makeCbz }
 
 function findComicFolderById(directory, id) {
     if (!fs.existsSync(directory)) {
@@ -53,10 +53,8 @@ async function testLocalResponse() {
  */
 async function getComicDetail(id) {
     let url = `${DETAIL_API}${id}${DEFAULT_REQ_SUFFIX}`
-    let resp = await DefaultAxiosProxy.get(url, {
-        userAgent: COMIC_DEFAULT_UA
-    } ).catch(e => {
-        console.error(`Error getting comic detail`, e)
+    let resp = await DefaultAxiosProxy.get(url).catch(e => {
+        console.error(`Error getting comic detail:`, e)
         return null
     })
     let protoMsgBuf = decryptBlocksWithDefaultKey(resp.data)
@@ -74,12 +72,11 @@ async function getComicDetail(id) {
 
 async function getChapterDetail(comicId, chapterId) {
     let url = `${CHAPTER_API}${comicId}/${chapterId}${DEFAULT_REQ_SUFFIX}`
-    let resp = await DefaultAxiosProxy.get(url, {
-        userAgent: COMIC_DEFAULT_UA
-    }).catch(e => {
+    let resp = await DefaultAxiosProxy.get(url).catch(e => {
         console.error(`Error getting comic chapter detail with URL ${url}`, e)
         return null
-    })  
+    })
+    if (resp == null || resp.data == null) return null  
     let protoMsgBuf = decryptBlocksWithDefaultKey(resp.data)
     let respObj = await ProtoUtils.decode(PROTO_TEMPLATE, "comic.ChapterResponse", protoMsgBuf)
     if (respObj.errno || respObj.errmsg || !respObj.data) {
