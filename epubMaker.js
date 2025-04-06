@@ -9,9 +9,9 @@ const Epub = require("epub-gen")
 //TODO: refractor of main function; increamental update;
 
 // url = "https://xs.dmzj.com/3638/index.shtml"
-id = 2403;
+id = 521;
 //Incremental is not necessary now
-// updateFrom = "/Users/zzy/Downloads/dmzj/3236_我的初恋对象与人接吻了/我的初恋对象与人接吻了.epub"
+const INCREMENTAL = false
 
 outputDir = "/Users/zzy/Downloads/dmzj/"
 
@@ -74,7 +74,7 @@ async function makeEpub(novelId) {
         }
         //Add split page
         content.push({
-            title: "",
+            title: " ",
             data: "<div><hr></div>"
         })
     })
