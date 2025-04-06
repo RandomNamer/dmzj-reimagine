@@ -34,6 +34,11 @@ function composeMetadataXml(folder, comicInfo, chapterInfo, volumeSplitMultiplie
     const genreString = comicInfo.types.map(tag => tag.tagName).join(', ')
     const statusString = comicInfo.status.map(tag => tag.tagName).join(', ')
 
+    if (fileCount === 0) {
+        console.log (`No files found in ${folder}, skipping cbz flow`)
+        throw new Error(`No files found in ${folder}, should skipping cbz flow`)
+    }
+
     let comicInfoXmlObj = {
         _declaration: {
             _attributes: {
@@ -123,21 +128,31 @@ async function makeCbz(comicFolder, cbzRoot, volumeSplitMultiplier = 0, updatesO
             let chapterFolder = path.join(volumeFolder, chapter.chapterTitle)
             // let chapterCbz = path.join(cbzFolder, volume.title, `${chapter.chapterTitle}.cbz`)
             let chapterCbz = path.join(cbzFolder, `${volume.title} - ${chapter.chapterTitle}.cbz`)
-            if (updatesOnly && !updatedChapters.includes(chapter.chapterId.toString())) continue;
+            if (fs.existsSync(chapterCbz)) {
+                // Will write anyway if target cbz is not present
+                if (updatesOnly && !updatedChapters.includes(chapter.chapterId.toString())) continue;
+            }
             console.log(`Zipping ${chapter.chapterTitle} to ${chapterCbz}`)
             if (!fs.existsSync(chapterFolder)) {
                 fs.mkdirSync(chapterFolder, {recursive: true})
             }
-            composeMetadataXml(chapterFolder, comicInfo, {
-                chapterName: chapter.chapterTitle, 
-                volumeName: volume.title,
-                volumeOrdinal: volumeNum,
-                chapterOrdinal: chapterNum,
-                updatedAt: chapter.updatetime,
-            }, volumeSplitMultiplier)
+            try {
+                composeMetadataXml(chapterFolder, comicInfo, {
+                    chapterName: chapter.chapterTitle, 
+                    volumeName: volume.title,
+                    volumeOrdinal: volumeNum,
+                    chapterOrdinal: chapterNum,
+                    updatedAt: chapter.updatetime,
+                }, volumeSplitMultiplier)
+            } catch(e) {
+                continue;
+            }
             if (chapterNum === 1) {
-                console.log(`Copying cover.jpg to first chapter to help Komga to find it correctly`)
-                fs.copyFileSync(path.join(comicFolder, 'cover.jpg'), path.join(chapterFolder, '0.jpg'))
+                const coverFile = fs.readdirSync(comicFolder).find(f => f.includes('cover'))
+                if (coverFile) {
+                    console.log(`Copying ${coverFile} to first chapter to help Komga to find it correctly`)
+                    fs.copyFileSync(path.join(comicFolder, coverFile), path.join(chapterFolder, `0.${path.extname(coverFile)}`))
+                }
             }
             await compressDirectoryAlt(chapterFolder, chapterCbz, 1).then(() => {
                 console.log(`Successfully zipped ${chapterCbz}`)

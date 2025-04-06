@@ -9,7 +9,8 @@ function timestampToLocaleString(unixTimestamp){
 }
 
 function timeStampToDashedString(unixTimestamp) {
-    let d = new Date(unixTimestamp * 1000)
+    if (unixTimestamp < TIME_STARTS) unixTimestamp *= 1000
+    let d = new Date(unixTimestamp)
     return `${d.getFullYear()}_${d.getMonth() + 1}_${d.getDate()}`
 }
 

@@ -3,3 +3,8 @@ node_modules
 .DS_Store
 *.DS_Store
 utils/safestore.js
+.idea/
+*.iml
+*.bin
+/comic/*.json
+comic/tasks/VictimFinderTask.js
