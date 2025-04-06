@@ -12,6 +12,6 @@ see [here](./epubMaker.js)
 ## Archive and organize manga as images and metadata-included `cbz` files
 - see [here](./comicArchiver.js)
 - Supports updating comic archives using incremental option.
-- [Batch input](./comicSubscriptionImporter.js) subscription list using DMZJ's static html. In future I may also use this to extract and migrate reading progress to self-hosted comic services like Komga.
+- [Batch import](./comicSubscriptionImporter.js) subscription list using DMZJ's static html. In future I may also use this to extract and migrate reading progress to self-hosted comic services like Komga.
 - [Batch update](./comicBatchUpdater.js) local comics using incremental downloading.
 
