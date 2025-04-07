@@ -126,6 +126,7 @@ async function makeCbz(comicFolder, cbzRoot, volumeSplitMultiplier = 0, updatesO
         for (let chapter of volume.data.sort((a, b) => a.chapterOrder - b.chapterOrder)) {
             chapterNum += 1
             let chapterFolder = path.join(volumeFolder, chapter.chapterTitle)
+            const linkedArchiveResult = localInfo.archiveResult.chapters.find(c => c.id == chapter.chapterId)
             // let chapterCbz = path.join(cbzFolder, volume.title, `${chapter.chapterTitle}.cbz`)
             let chapterCbz = path.join(cbzFolder, `${volume.title} - ${chapter.chapterTitle}.cbz`)
             if (fs.existsSync(chapterCbz)) {
@@ -156,6 +157,7 @@ async function makeCbz(comicFolder, cbzRoot, volumeSplitMultiplier = 0, updatesO
             }
             await compressDirectoryAlt(chapterFolder, chapterCbz, 1).then(() => {
                 console.log(`Successfully zipped ${chapterCbz}`)
+                linkedArchiveResult.cbzPath = chapterCbz
             }).catch(e => {
                 console.error(`Error zipping ${chapterCbz} with ${e}`)
             })
@@ -168,7 +170,8 @@ async function makeCbz(comicFolder, cbzRoot, volumeSplitMultiplier = 0, updatesO
         // }).catch(e => {
         //     console.error(`Error zipping ${volume.title}.cbz with ${e}`)
         // })
-    }  
+    }
+    fs.writeFileSync(path.join(comicFolder, 'info.json'), JSON.stringify(localInfo, null, 2))  
 }
 
 
