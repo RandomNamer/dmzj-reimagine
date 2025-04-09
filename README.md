@@ -12,7 +12,7 @@ Working as for April 2025. I'm planning a [final update](https://zeyuzhang3.noti
 see [here](./epubMaker.js)
 
 # Archive and organize manga as images and metadata-included `cbz` files
-> I'm able to migrate all my subscribed manga (~200 titles, ~40GB) using these scripts to my local NAS hosted with Komga.
+> I'm able to migrate all my subscribed manga (~200 titles, ~40GB) using these scripts to my local NAS and host them with Komga.
 > <img width="1389" alt="image" src="https://github.com/user-attachments/assets/afc97f2a-2b27-469d-acdd-f6bf6e21018c" />
 
 - [Archive Single](./comicArchiver.js): Supports updating comic archives using incremental option. Supports newest API so that you can download VIP comics with VIP uids.
